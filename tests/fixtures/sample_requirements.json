@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "title": "User Authentication Module",
+    "source_type": "paste",
+    "author": "BA Team",
+    "version": "1.0",
+    "date": "2026-08-04"
+  },
+  "features": [
+    {
+      "id": "F-REG",
+      "name": "User Registration",
+      "description": "Users can create an account with email and password.",
+      "source_location": "Section 2.1",
+      "acceptance_criteria": [
+        {
+          "id": "AC-R1",
+          "text": "User can register with a valid email and password of 8-64 characters",
+          "grounding": "explicit",
+          "source_location": "Section 2.1",
+          "validations": [
+            {
+              "field": "password",
+              "constraint": "8-64 characters",
+              "error_message": "Password must be 8-64 characters",
+              "grounding": "explicit"
+            }
+          ]
+        },
+        {
+          "id": "AC-R3",
+          "text": "Duplicate email addresses are rejected",
+          "grounding": "explicit",
+          "source_location": "Section 2.1",
+          "validations": []
+        }
+      ]
+    },
+    {
+      "id": "F-LOGIN",
+      "name": "User Login",
+      "description": "Registered users can log in with email and password.",
+      "source_location": "Section 2.2",
+      "acceptance_criteria": [
+        {
+          "id": "AC-L1",
+          "text": "User can log in with correct email and password",
+          "grounding": "explicit",
+          "source_location": "Section 2.2",
+          "validations": []
+        },
+        {
+          "id": "AC-L2",
+          "text": "Five consecutive failed attempts lock the account for 15 minutes",
+          "grounding": "explicit",
+          "source_location": "Section 2.2",
+          "validations": []
+        }
+      ]
+    },
+    {
+      "id": "F-RESET",
+      "name": "Password Reset",
+      "description": "Users can reset a forgotten password via email link.",
+      "source_location": "Section 2.3",
+      "acceptance_criteria": [
+        {
+          "id": "AC-P1",
+          "text": "Reset link expires after 60 minutes",
+          "grounding": "explicit",
+          "source_location": "Section 2.3",
+          "validations": []
+        }
+      ]
+    }
+  ],
+  "confidence": {
+    "explicit_criteria_count": 5,
+    "inferred_criteria_count": 0,
+    "low_confidence_features": []
+  }
+}

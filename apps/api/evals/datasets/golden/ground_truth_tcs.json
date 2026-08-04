@@ -1,0 +1,718 @@
+{
+  "source_doc_title": "User Authentication Module",
+  "test_cases": [
+    {
+      "tc_id": "TC-001",
+      "feature_id": "F-REG",
+      "title": "Register with valid credentials",
+      "category": "positive",
+      "priority": "high",
+      "grounding_source": "AC-R1: User can register with a valid email and password of 8-64 characters",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Successful registration",
+        "tags": [
+          "@positive",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the user is on the registration page"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits a valid email and a compliant password"
+          },
+          {
+            "keyword": "Then",
+            "text": "the account is created"
+          },
+          {
+            "keyword": "And",
+            "text": "a verification email is sent"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-002",
+      "feature_id": "F-REG",
+      "title": "Verification email sent after registration",
+      "category": "positive",
+      "priority": "medium",
+      "grounding_source": "AC-R4: Email verification link is sent after successful registration",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Verification email dispatched",
+        "tags": [
+          "@positive",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a user has completed registration successfully"
+          },
+          {
+            "keyword": "When",
+            "text": "the registration is confirmed"
+          },
+          {
+            "keyword": "Then",
+            "text": "an email verification link is sent to the user's address"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-003",
+      "feature_id": "F-REG",
+      "title": "Password length boundaries",
+      "category": "boundary",
+      "priority": "high",
+      "grounding_source": "AC-R1: password of 8-64 characters",
+      "gherkin": {
+        "scenario_type": "scenario_outline",
+        "title": "Password length boundary validation",
+        "tags": [
+          "@boundary",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the user is on the registration page"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits a password of <length> characters"
+          },
+          {
+            "keyword": "Then",
+            "text": "registration is <result>"
+          }
+        ],
+        "examples_table": [
+          {
+            "length": "7",
+            "result": "rejected"
+          },
+          {
+            "length": "8",
+            "result": "accepted"
+          },
+          {
+            "length": "64",
+            "result": "accepted"
+          },
+          {
+            "length": "65",
+            "result": "rejected"
+          }
+        ]
+      }
+    },
+    {
+      "tc_id": "TC-004",
+      "feature_id": "F-REG",
+      "title": "Password complexity enforced",
+      "category": "negative",
+      "priority": "high",
+      "grounding_source": "AC-R2: Password must contain at least one uppercase letter and one digit",
+      "gherkin": {
+        "scenario_type": "scenario_outline",
+        "title": "Password complexity validation",
+        "tags": [
+          "@negative",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the user is on the registration page"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits password <password>"
+          },
+          {
+            "keyword": "Then",
+            "text": "the registration is rejected with a complexity error"
+          }
+        ],
+        "examples_table": [
+          {
+            "password": "alllowercase1"
+          },
+          {
+            "password": "NOUPPERCASE1"
+          },
+          {
+            "password": "NoDigitsHere"
+          }
+        ]
+      }
+    },
+    {
+      "tc_id": "TC-005",
+      "feature_id": "F-REG",
+      "title": "Duplicate email rejected",
+      "category": "negative",
+      "priority": "high",
+      "grounding_source": "AC-R3: Duplicate email addresses are rejected with error \"Email already registered\"",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Duplicate email rejection",
+        "tags": [
+          "@negative",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "an account already exists for the email address"
+          },
+          {
+            "keyword": "When",
+            "text": "the user attempts to register with the same email"
+          },
+          {
+            "keyword": "Then",
+            "text": "registration is rejected with error \"Email already registered\""
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-006",
+      "feature_id": "F-REG",
+      "title": "Inline validation messages",
+      "category": "positive",
+      "priority": "low",
+      "grounding_source": "AC-R5: Registration form shows inline validation messages (inferred)",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Inline validation display",
+        "tags": [
+          "@positive",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the user is on the registration page"
+          },
+          {
+            "keyword": "When",
+            "text": "the user enters an invalid field value"
+          },
+          {
+            "keyword": "Then",
+            "text": "an inline validation message appears for that field"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-007",
+      "feature_id": "F-LOGIN",
+      "title": "Login with valid credentials",
+      "category": "positive",
+      "priority": "high",
+      "grounding_source": "AC-L1: User can log in with correct email and password",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Successful login",
+        "tags": [
+          "@positive",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a registered and verified user"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits correct email and password"
+          },
+          {
+            "keyword": "Then",
+            "text": "the user is logged in and redirected to the dashboard"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-008",
+      "feature_id": "F-LOGIN",
+      "title": "Login with wrong password",
+      "category": "negative",
+      "priority": "high",
+      "grounding_source": "AC-L1: User can log in with correct email and password",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Failed login with wrong password",
+        "tags": [
+          "@negative",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a registered and verified user"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits the correct email with a wrong password"
+          },
+          {
+            "keyword": "Then",
+            "text": "login is rejected with an invalid credentials message"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-009",
+      "feature_id": "F-LOGIN",
+      "title": "Account lockout after five failures",
+      "category": "negative",
+      "priority": "high",
+      "grounding_source": "AC-L2: Five consecutive failed attempts lock the account for 15 minutes",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Lockout after repeated failures",
+        "tags": [
+          "@negative",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a registered user with four consecutive failed login attempts"
+          },
+          {
+            "keyword": "When",
+            "text": "the fifth login attempt fails"
+          },
+          {
+            "keyword": "Then",
+            "text": "the account is locked for 15 minutes"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-010",
+      "feature_id": "F-LOGIN",
+      "title": "Lockout boundary at four attempts",
+      "category": "boundary",
+      "priority": "medium",
+      "grounding_source": "AC-L2: Five consecutive failed attempts lock the account for 15 minutes",
+      "gherkin": {
+        "scenario_type": "scenario_outline",
+        "title": "Lockout threshold boundary",
+        "tags": [
+          "@boundary",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a registered user"
+          },
+          {
+            "keyword": "When",
+            "text": "the user fails to log in <attempts> times consecutively"
+          },
+          {
+            "keyword": "Then",
+            "text": "the account is <status>"
+          }
+        ],
+        "examples_table": [
+          {
+            "attempts": "4",
+            "status": "not locked"
+          },
+          {
+            "attempts": "5",
+            "status": "locked for 15 minutes"
+          }
+        ]
+      }
+    },
+    {
+      "tc_id": "TC-011",
+      "feature_id": "F-LOGIN",
+      "title": "Remember me extends session",
+      "category": "positive",
+      "priority": "medium",
+      "grounding_source": "AC-L3: \"Remember me\" keeps the session for 30 days",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Remember me session persistence",
+        "tags": [
+          "@positive",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a verified user logging in with remember me enabled"
+          },
+          {
+            "keyword": "When",
+            "text": "the user returns after 29 days"
+          },
+          {
+            "keyword": "Then",
+            "text": "the session is still active"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-012",
+      "feature_id": "F-LOGIN",
+      "title": "Remember me session expiry",
+      "category": "edge",
+      "priority": "medium",
+      "grounding_source": "AC-L3: \"Remember me\" keeps the session for 30 days",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Remember me expiry",
+        "tags": [
+          "@edge",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a verified user logging in with remember me enabled"
+          },
+          {
+            "keyword": "When",
+            "text": "the user returns after 31 days"
+          },
+          {
+            "keyword": "Then",
+            "text": "the user is asked to log in again"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-013",
+      "feature_id": "F-LOGIN",
+      "title": "Unverified account cannot log in",
+      "category": "negative",
+      "priority": "high",
+      "grounding_source": "AC-L4: Unverified email accounts cannot log in",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Unverified account login blocked",
+        "tags": [
+          "@negative",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a registered user who has not verified their email"
+          },
+          {
+            "keyword": "When",
+            "text": "the user attempts to log in"
+          },
+          {
+            "keyword": "Then",
+            "text": "login is rejected with a verification required message"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-014",
+      "feature_id": "F-RESET",
+      "title": "Reset link expiry",
+      "category": "edge",
+      "priority": "high",
+      "grounding_source": "AC-P1: Reset link expires after 60 minutes",
+      "gherkin": {
+        "scenario_type": "scenario_outline",
+        "title": "Reset link validity window",
+        "tags": [
+          "@edge",
+          "@F-RESET"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a password reset link was issued"
+          },
+          {
+            "keyword": "When",
+            "text": "the user opens the link after <minutes> minutes"
+          },
+          {
+            "keyword": "Then",
+            "text": "the link is <validity>"
+          }
+        ],
+        "examples_table": [
+          {
+            "minutes": "59",
+            "validity": "valid"
+          },
+          {
+            "minutes": "61",
+            "validity": "expired"
+          }
+        ]
+      }
+    },
+    {
+      "tc_id": "TC-015",
+      "feature_id": "F-RESET",
+      "title": "New password must differ from recent",
+      "category": "negative",
+      "priority": "medium",
+      "grounding_source": "AC-P2: New password must differ from the previous 3 passwords",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Password reuse rejection",
+        "tags": [
+          "@negative",
+          "@F-RESET"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a user resetting their password"
+          },
+          {
+            "keyword": "When",
+            "text": "the new password matches one of the previous 3 passwords"
+          },
+          {
+            "keyword": "Then",
+            "text": "the reset is rejected with a password reuse error"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-016",
+      "feature_id": "F-RESET",
+      "title": "Unknown email shows generic message",
+      "category": "positive",
+      "priority": "medium",
+      "grounding_source": "AC-P3: Reset with an unknown email shows a generic confirmation message",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Generic reset confirmation",
+        "tags": [
+          "@positive",
+          "@F-RESET"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "no account exists for the submitted email"
+          },
+          {
+            "keyword": "When",
+            "text": "the user requests a password reset"
+          },
+          {
+            "keyword": "Then",
+            "text": "a generic confirmation message is shown without revealing account existence"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-017",
+      "feature_id": "F-REG",
+      "title": "Empty registration form submission",
+      "category": "negative",
+      "priority": "medium",
+      "grounding_source": "AC-R5: Registration form shows inline validation messages (inferred)",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Empty form rejected",
+        "tags": [
+          "@negative",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the user is on the registration page"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits the form without entering any data"
+          },
+          {
+            "keyword": "Then",
+            "text": "required-field validation messages are shown"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-018",
+      "feature_id": "F-LOGIN",
+      "title": "Session without remember me",
+      "category": "edge",
+      "priority": "low",
+      "grounding_source": "AC-L3: \"Remember me\" keeps the session for 30 days",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Default session expiry",
+        "tags": [
+          "@edge",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a verified user logging in without remember me"
+          },
+          {
+            "keyword": "When",
+            "text": "the browser session ends"
+          },
+          {
+            "keyword": "Then",
+            "text": "the user must log in again on next visit"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-019",
+      "feature_id": "F-RESET",
+      "title": "Successful password reset",
+      "category": "positive",
+      "priority": "high",
+      "grounding_source": "AC-P1: Reset link expires after 60 minutes",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Reset password with valid link",
+        "tags": [
+          "@positive",
+          "@F-RESET"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "a user with a valid unexpired reset link"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits a new compliant password"
+          },
+          {
+            "keyword": "Then",
+            "text": "the password is updated and the user can log in with it"
+          }
+        ],
+        "examples_table": null
+      }
+    },
+    {
+      "tc_id": "TC-020",
+      "feature_id": "F-REG",
+      "title": "Email format validation",
+      "category": "boundary",
+      "priority": "medium",
+      "grounding_source": "AC-R1: User can register with a valid email",
+      "gherkin": {
+        "scenario_type": "scenario_outline",
+        "title": "Email format validation",
+        "tags": [
+          "@boundary",
+          "@F-REG"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the user is on the registration page"
+          },
+          {
+            "keyword": "When",
+            "text": "the user submits email <email>"
+          },
+          {
+            "keyword": "Then",
+            "text": "the email is <result>"
+          }
+        ],
+        "examples_table": [
+          {
+            "email": "user@example.com",
+            "result": "accepted"
+          },
+          {
+            "email": "not-an-email",
+            "result": "rejected"
+          },
+          {
+            "email": "user@",
+            "result": "rejected"
+          }
+        ]
+      }
+    },
+    {
+      "tc_id": "TC-021",
+      "feature_id": "F-LOGIN",
+      "title": "SQL injection attempt on login",
+      "category": "negative",
+      "priority": "high",
+      "grounding_source": "AC-L1: User can log in with correct email and password (inferred security case)",
+      "gherkin": {
+        "scenario_type": "scenario",
+        "title": "Injection attempt rejected",
+        "tags": [
+          "@negative",
+          "@F-LOGIN"
+        ],
+        "steps": [
+          {
+            "keyword": "Given",
+            "text": "the login page is available"
+          },
+          {
+            "keyword": "When",
+            "text": "an attacker submits a malicious injection payload as credentials"
+          },
+          {
+            "keyword": "Then",
+            "text": "login is rejected and no data is exposed"
+          }
+        ],
+        "examples_table": null
+      }
+    }
+  ]
+}
