@@ -7,12 +7,12 @@ from typing import Any, Dict, Optional
 ROLES: Dict[str, Dict[str, Any]] = {
     "generate": {
         "provider": "gemini",
-        "model": "gemini-2.0-flash",
-        "fallbacks": ["gemini-1.5-flash"],
+        "model": "gemini-2.5-flash",
+        "fallbacks": ["gemini-flash-lite-latest"],
     },
     "verify": {
         "provider": "openrouter",
-        "model": "anthropic/claude-3.5-sonnet",
+        "model": "anthropic/claude-3.5-haiku",
         "fallbacks": ["openai/gpt-4o-mini"],
     },
     "judge": {

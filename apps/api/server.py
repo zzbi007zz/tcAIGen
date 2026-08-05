@@ -1,6 +1,14 @@
 """FastAPI server exposing the full test case generation pipeline."""
 from __future__ import annotations
 
+import os
+
+# Only load .env when NOT running under pytest (tests use mocks, not real API calls)
+if not os.environ.get("PYTEST_CURRENT_TEST"):
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
 import tempfile
 import uuid
 import zipfile
@@ -18,7 +26,7 @@ from apps.api.pipeline import extract, ingest, merge, vision
 from apps.api.pipeline.export import gherkin_writer, xlsx_writer
 from apps.api.pipeline.loop import Loop
 
-MAX_DOC_BYTES = 10 * 1024 * 1024
+MAX_DOC_BYTES = 50 * 1024 * 1024
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 app = FastAPI(title="BDD Test Case Generator")
@@ -112,7 +120,7 @@ def _run_job(job_id: str, doc_path: Path, screenshot_paths: List[Path] | None = 
             test_cases = TestCaseSet.model_validate(result.final_output)
             job["result"] = test_cases
             job["quality_report"] = evaluate_all(
-                test_cases, requirements, source=ingest.parse_document(doc_path)
+                test_cases, requirements, source_doc=ingest.parse_document(doc_path)
             )
         job["loop_passed"] = result.passed
         job["status"] = "complete"

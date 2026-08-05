@@ -58,6 +58,8 @@ def run_extraction(
     source_type = ingest.source_type_for(file_path)
     prompt = fill_template(load_prompt(prompt_version), text)
     client = client or get_client()
+    if not client.available:
+        raise GeminiUnavailableError("GEMINI_API_KEY is not configured")
 
     last_error: Optional[Exception] = None
     for _ in range(max_attempts):

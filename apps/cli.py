@@ -1,6 +1,14 @@
 """CLI demo: process a BA doc end-to-end without the server."""
 from __future__ import annotations
 
+import os
+
+# Only load .env when NOT running under pytest
+if not os.environ.get("PYTEST_CURRENT_TEST"):
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
 import argparse
 import sys
 import time
@@ -44,7 +52,7 @@ def run(doc_path: str, screenshots: str | None = None, output: str = "output", v
     print("[5/5] Writing outputs...")
     names = {f.id: f.name for f in requirements.features}
     written = gherkin_writer.write_feature_file(test_cases, out_dir, feature_names=names)
-    report = evaluate_all(test_cases, requirements, source=ingest.parse_document(doc_path))
+    report = evaluate_all(test_cases, requirements, source_doc=ingest.parse_document(doc_path))
     report_path = out_dir / "report.md"
     report_path.write_text(
         f"# Quality Report\n\nOverall score: {report.overall_score}/100\n\n"

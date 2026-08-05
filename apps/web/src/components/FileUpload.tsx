@@ -40,7 +40,7 @@ export default function FileUpload({ onFile, disabled }: {
           onChange={(e) => handleDoc(e.target.files)}
         />
         <p>Drag & drop your BA document here, or click to browse</p>
-        <p className="muted">Supports .txt, .md, .docx, .pdf (max 10MB)</p>
+        <p className="muted">Supports .txt, .md, .docx, .pdf (max 50MB)</p>
       </div>
       {docFile && (
         <p className="muted" style={{ marginTop: "0.5rem" }}>Selected: {docFile.name}</p>

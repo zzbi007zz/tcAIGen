@@ -5,7 +5,7 @@ import os
 import time
 from typing import Any, Optional
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_ATTEMPTS = 3
 
 

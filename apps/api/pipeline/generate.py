@@ -7,7 +7,7 @@ from typing import Any, List, Optional
 
 from apps.api.models import RequirementsDocument, TestCaseSet
 from apps.api.pipeline.extract import strip_markdown_fences
-from apps.api.pipeline.gemini_client import GeminiClient, get_client
+from apps.api.pipeline.gemini_client import GeminiClient, GeminiUnavailableError, get_client
 
 PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
 
@@ -83,6 +83,8 @@ def run_generation(
         "{requirements_json}", build_feature_content(requirements_doc)
     )
     client = client or get_client()
+    if not client.available:
+        raise GeminiUnavailableError("GEMINI_API_KEY is not configured")
     last_error: Optional[Exception] = None
     for _ in range(max_attempts):
         try:

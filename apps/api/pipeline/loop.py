@@ -62,7 +62,22 @@ class Loop:
 
             gate_result = gate(test_cases)
             if gate_result.passed:
-                verdict = self._verifier(test_cases, source)
+                try:
+                    verdict = self._verifier(test_cases, source)
+                except Exception as verr:
+                    # Verifier unavailable (bad model name, network error, etc.)
+                    # Skip verification and return generated output
+                    verdicts.append(VerifierVerdict(
+                        passed=False, confidence=0.0,
+                        feedback=f"Verifier error: {verr}",
+                    ))
+                    return LoopResult(
+                        passed=False,
+                        actual_iterations=iteration,
+                        total_cost=total_cost,
+                        final_output=final_output.model_dump() if final_output else None,
+                        verdicts=verdicts,
+                    )
                 verdicts.append(verdict)
                 if verdict.passed:
                     if verdict.confidence < JUDGE_CONFIDENCE_THRESHOLD:

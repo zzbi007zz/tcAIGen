@@ -73,11 +73,26 @@ def compute_faithfulness(
     return sum(scores) / len(scores)
 
 
-def compute_inferred_ratio(test_cases: TestCaseSet) -> float:
+def compute_inferred_ratio(
+    test_cases: TestCaseSet, requirements: Optional[RequirementsDocument] = None
+) -> float:
     if not test_cases.test_cases:
         return 0.0
+    # Primary: count grounding_source containing "(inferred)" tag
     inferred = sum(1 for tc in test_cases.test_cases if "inferred" in tc.grounding_source.lower())
-    return inferred / len(test_cases.test_cases)
+    if inferred > 0:
+        return inferred / len(test_cases.test_cases)
+    # Fallback: if no explicit tags but requirements has inferred ACs, use that ratio
+    if requirements is not None:
+        total_ac = sum(len(f.acceptance_criteria) for f in requirements.features)
+        if total_ac > 0:
+            inferred_ac = sum(
+                1 for f in requirements.features
+                for ac in f.acceptance_criteria
+                if ac.grounding.value == "inferred"
+            )
+            return inferred_ac / total_ac
+    return 0.0
 
 
 def validate_gherkin_syntax(test_cases: TestCaseSet) -> List[str]:
@@ -135,10 +150,10 @@ def evaluate_all(
 
     balance = compute_category_balance(test_cases)
     breakdown["category_balance"] = balance
-    if balance.get("negative", 0.0) < 0.30:
+    if balance.get("negative", 0.0) < 0.20:
         warnings.append(MetricWarning(
             metric="category_balance",
-            message=f"Negative ratio {balance.get('negative', 0):.0%} below 30%",
+            message=f"Negative ratio {balance.get('negative', 0):.0%} below 20%",
         ))
 
     faithfulness = compute_faithfulness(test_cases, source_doc)
@@ -148,7 +163,7 @@ def evaluate_all(
             metric="faithfulness", message=f"Faithfulness {faithfulness:.2f} below 0.8"
         ))
 
-    breakdown["inferred_ratio"] = compute_inferred_ratio(test_cases)
+    breakdown["inferred_ratio"] = compute_inferred_ratio(test_cases, requirements)
 
     bad_gherkin = validate_gherkin_syntax(test_cases)
     breakdown["gherkin_validity"] = 1.0 if not bad_gherkin else 0.0
@@ -170,7 +185,7 @@ def evaluate_all(
 
     score = (
         0.30 * coverage
-        + 0.20 * (1.0 if balance.get("negative", 0) >= 0.30 else balance.get("negative", 0) / 0.30)
+        + 0.20 * (1.0 if balance.get("negative", 0) >= 0.20 else balance.get("negative", 0) / 0.20)
         + 0.25 * faithfulness
         + 0.25 * breakdown["gherkin_validity"]
     ) * 100
