@@ -1,6 +1,7 @@
 """Maker/verifier loop: generate -> gate -> verify -> judge -> retry."""
 from __future__ import annotations
 
+import inspect
 from typing import Any, Callable, List, Optional
 
 from apps.api.evals.metrics import gate
@@ -32,6 +33,12 @@ class Loop:
         self._generator = generator or generate.run_generation
         self._verifier = verifier or verify.verify
         self._judge = judge
+        try:
+            self._generator_takes_source = (
+                "source_text" in inspect.signature(self._generator).parameters
+            )
+        except (TypeError, ValueError):
+            self._generator_takes_source = False
 
     def _call_judge(self, test_cases: TestCaseSet, source: str) -> VerifierVerdict:
         if self._judge is not None:
@@ -57,7 +64,11 @@ class Loop:
             total_cost += self.budget.cost_per_iteration
             iterations = iteration
 
-            test_cases = self._generator(requirements)
+            if self._generator_takes_source:
+                test_cases = self._generator(requirements, source_text=source)
+            else:
+                # Custom generator callables may not accept source_text
+                test_cases = self._generator(requirements)
             final_output = test_cases
 
             gate_result = gate(test_cases)

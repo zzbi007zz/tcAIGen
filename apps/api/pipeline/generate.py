@@ -77,10 +77,13 @@ def run_generation(
     requirements_doc: RequirementsDocument,
     client: Optional[GeminiClient] = None,
     prompt_version: str = "v1",
+    source_text: str = "",
     max_attempts: int = 3,
 ) -> TestCaseSet:
     prompt = load_generation_prompt(prompt_version).replace(
         "{requirements_json}", build_feature_content(requirements_doc)
+    ).replace(
+        "{source_document}", source_text
     )
     client = client or get_client()
     if not client.available:

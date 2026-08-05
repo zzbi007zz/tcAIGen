@@ -43,7 +43,9 @@ def run(doc_path: str, screenshots: str | None = None, output: str = "output", v
         print("[2/5] No screenshots provided — skipping vision/merge")
 
     print("[3/5] Generating test cases...")
-    test_cases = generate.run_generation(requirements)
+    test_cases = generate.run_generation(
+        requirements, source_text=ingest.parse_document(doc_path)
+    )
 
     print("[4/5] Running deterministic gate...")
     gate_result = gate(test_cases)

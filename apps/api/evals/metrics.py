@@ -1,14 +1,36 @@
-"""Quality metrics + deterministic gate for generated test cases."""
+"""Quality metrics + quality report for generated test cases."""
 from __future__ import annotations
 
+import os
 import re
-from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
-from apps.api.models import GateResult, RequirementsDocument, TestCase, TestCaseSet
+from apps.api.evals import proxy_mutation, semantic
+from apps.api.evals.gate import detect_duplicates, gate  # re-export
+from apps.api.models import RequirementsDocument, TestCaseSet
+from apps.api.pipeline.gemini_client import GeminiClient
 from apps.api.pipeline.generate import validate_gherkin
+
+__all__ = [
+    "MetricWarning",
+    "QualityReport",
+    "compute_ac_coverage",
+    "compute_category_balance",
+    "compute_faithfulness",
+    "compute_inferred_ratio",
+    "validate_gherkin_syntax",
+    "evaluate_all",
+    "detect_duplicates",
+    "gate",
+]
+
+# Calibrated on golden dataset with all-MiniLM-L6-v2:
+# good TC<->AC pairs score 0.26-0.85 (mean ~0.54), unrelated pairs < 0.10
+SEMANTIC_CONSISTENCY_WARN = 0.35
+SEMANTIC_CONSISTENCY_CRITICAL = 0.20
+PROXY_MUTATION_WARN = 0.60
 
 
 class MetricWarning(BaseModel):
@@ -51,6 +73,23 @@ def compute_category_balance(test_cases: TestCaseSet) -> Dict[str, float]:
 
 
 def compute_faithfulness(
+    test_cases: TestCaseSet, source_doc: str = ""
+) -> float:
+    """Blend 50% lexical token overlap + 50% SBERT semantic similarity.
+
+    Falls back to pure lexical scoring when SBERT or the source doc is
+    unavailable.
+    """
+    lexical = _compute_lexical_faithfulness(test_cases, source_doc)
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("SBERT_TESTS"):
+        return lexical
+    semantic_score = semantic.compute_semantic_faithfulness(test_cases, source_doc)
+    if semantic_score is None:
+        return lexical
+    return 0.5 * lexical + 0.5 * semantic_score
+
+
+def _compute_lexical_faithfulness(
     test_cases: TestCaseSet, source_doc: str = ""
 ) -> float:
     """Lexical overlap of grounding_source with the source document (G-Eval fallback)."""
@@ -99,43 +138,17 @@ def validate_gherkin_syntax(test_cases: TestCaseSet) -> List[str]:
     return validate_gherkin(test_cases)
 
 
-def _similarity(a: TestCase, b: TestCase) -> float:
-    ta = f"{a.title} {a.gherkin.title} {' '.join(s.text for s in a.gherkin.steps)}"
-    tb = f"{b.title} {b.gherkin.title} {' '.join(s.text for s in b.gherkin.steps)}"
-    return SequenceMatcher(None, ta.lower(), tb.lower()).ratio()
-
-
-def detect_duplicates(test_cases: TestCaseSet, threshold: float = 0.92) -> List[Tuple[str, str]]:
-    pairs: List[Tuple[str, str]] = []
-    cases = test_cases.test_cases
-    for i in range(len(cases)):
-        for j in range(i + 1, len(cases)):
-            if _similarity(cases[i], cases[j]) > threshold:
-                pairs.append((cases[i].tc_id, cases[j].tc_id))
-    return pairs
-
-
-def gate(test_cases: TestCaseSet) -> GateResult:
-    """Deterministic zero-token gate: gherkin parse + duplication."""
-    bad_gherkin = validate_gherkin(test_cases)
-    dup_pairs = detect_duplicates(test_cases)
-    errors = [f"Invalid Gherkin in {tc_id}" for tc_id in bad_gherkin]
-    errors += [f"Duplicate pair {a}/{b}" for a, b in dup_pairs]
-    return GateResult(
-        passed=not bad_gherkin and not dup_pairs,
-        gherkin_pass=not bad_gherkin,
-        dup_count=len(dup_pairs),
-        errors=errors,
-    )
-
-
 def evaluate_all(
     test_cases: TestCaseSet,
     requirements: Optional[RequirementsDocument] = None,
     source_doc: str = "",
+    client: Optional[GeminiClient] = None,
 ) -> QualityReport:
     warnings: List[MetricWarning] = []
     breakdown: Dict[str, Any] = {}
+    sbert_enabled = not (
+        os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("SBERT_TESTS")
+    )
 
     coverage, uncovered = 1.0, []
     if requirements is not None:
@@ -163,10 +176,24 @@ def evaluate_all(
             metric="faithfulness", message=f"Faithfulness {faithfulness:.2f} below 0.8"
         ))
 
-    breakdown["inferred_ratio"] = compute_inferred_ratio(test_cases, requirements)
+    inferred_ratio = compute_inferred_ratio(test_cases, requirements)
+    breakdown["inferred_ratio"] = inferred_ratio
+
+    consistency: Optional[float] = None
+    if requirements is not None and sbert_enabled:
+        consistency = semantic.compute_semantic_consistency(test_cases, requirements)
+    breakdown["semantic_consistency"] = consistency
+    if consistency is not None and consistency < SEMANTIC_CONSISTENCY_WARN:
+        severity = "critically " if consistency < SEMANTIC_CONSISTENCY_CRITICAL else ""
+        warnings.append(MetricWarning(
+            metric="semantic_consistency",
+            message=f"Semantic consistency {consistency:.2f} {severity}below "
+                    f"{SEMANTIC_CONSISTENCY_WARN}",
+        ))
 
     bad_gherkin = validate_gherkin_syntax(test_cases)
-    breakdown["gherkin_validity"] = 1.0 if not bad_gherkin else 0.0
+    gherkin_validity = 1.0 if not bad_gherkin else 0.0
+    breakdown["gherkin_validity"] = gherkin_validity
     if bad_gherkin:
         warnings.append(MetricWarning(
             metric="gherkin_validity",
@@ -175,22 +202,46 @@ def evaluate_all(
         ))
 
     dup_pairs = detect_duplicates(test_cases)
+    semantic_pairs = (
+        semantic.detect_semantic_duplicates(test_cases) if sbert_enabled else []
+    )
     breakdown["duplicates"] = [list(p) for p in dup_pairs]
-    if dup_pairs:
+    breakdown["semantic_duplicates"] = [list(p) for p in semantic_pairs]
+    all_dup_pairs = sorted(set(dup_pairs) | set(semantic_pairs))
+    if all_dup_pairs:
         warnings.append(MetricWarning(
             metric="duplication",
-            message=f"{len(dup_pairs)} duplicate pair(s) > 0.92 similarity",
-            tc_ids=[tc for pair in dup_pairs for tc in pair],
+            message=f"{len(all_dup_pairs)} duplicate pair(s) "
+                    f"(text > 0.92 or semantic >= 0.95 similarity)",
+            tc_ids=[tc for pair in all_dup_pairs for tc in pair],
+        ))
+
+    proxy_enabled = client is not None or not (
+        os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("PROXY_TESTS")
+    )
+    mutation = (
+        proxy_mutation.compute_proxy_mutation(test_cases, client)
+        if proxy_enabled
+        else 1.0
+    )
+    breakdown["proxy_mutation"] = mutation
+    if mutation < PROXY_MUTATION_WARN:
+        warnings.append(MetricWarning(
+            metric="proxy_mutation",
+            message=f"Proxy-mutation {mutation:.2f} below {PROXY_MUTATION_WARN}",
         ))
 
     score = (
-        0.30 * coverage
-        + 0.20 * (1.0 if balance.get("negative", 0) >= 0.20 else balance.get("negative", 0) / 0.20)
-        + 0.25 * faithfulness
-        + 0.25 * breakdown["gherkin_validity"]
+        0.20 * coverage
+        + 0.15 * (1.0 if balance.get("negative", 0) >= 0.20 else balance.get("negative", 0) / 0.20)
+        + 0.15 * faithfulness
+        + 0.15 * (consistency if consistency is not None else 1.0)
+        + 0.15 * gherkin_validity
+        + 0.10 * (1.0 - inferred_ratio)
+        + 0.10 * mutation
     ) * 100
-    if dup_pairs:
-        score -= min(10, 2 * len(dup_pairs))
+    if all_dup_pairs:
+        score -= min(10, 2 * len(all_dup_pairs))
     return QualityReport(
         overall_score=round(max(0.0, score), 1),
         breakdown=breakdown,

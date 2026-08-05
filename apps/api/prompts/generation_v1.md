@@ -4,6 +4,16 @@ You are a Senior QA Engineer with 10+ years of experience writing BDD test cases
 # TASK
 Generate BDD test cases from the structured requirements JSON below. Produce a TestCaseSet covering positive, negative, boundary, and edge scenarios with valid Gherkin syntax.
 
+# CONTEXT
+Below is the original BA document text and its structured requirements extraction.
+Use the original text for lexical grounding. Use the structured JSON for feature structure.
+
+ORIGINAL DOCUMENT:
+{source_document}
+
+STRUCTURED REQUIREMENTS:
+{requirements_json}
+
 # CONSTRAINTS
 1. Output ONLY valid JSON matching the schema below. No prose, no markdown fences, no trailing commas.
 
@@ -64,6 +74,3 @@ If any criterion fails, fix your output and re-validate before returning.
     }
   }]
 }
-
-REQUIREMENTS:
-{requirements_json}

@@ -34,7 +34,10 @@ flowchart TD
 | `apps/api/pipeline/model_router.py` | Role-based routing: generate=Gemini, verify=Claude, judge=GPT |
 | `apps/api/pipeline/verify.py` | Cross-family verification (no generator reasoning in prompt) |
 | `apps/api/pipeline/loop.py` | gate -> verify -> judge -> retry, budget + no-progress stop |
-| `apps/api/evals/metrics.py` | 6 metrics + `gate()` + `evaluate_all()` -> QualityReport |
+| `apps/api/evals/metrics.py` | 9-metric `evaluate_all()` -> QualityReport (blended faithfulness, new weights) |
+| `apps/api/evals/gate.py` | Deterministic gate: Gherkin parse + text duplication |
+| `apps/api/evals/semantic.py` | SBERT metrics: semantic consistency, semantic faithfulness, semantic dedup |
+| `apps/api/evals/proxy_mutation.py` | LLM-judged proxy-mutation score (max 5 TC sample, graceful degrade) |
 | `apps/api/evals/calibration.py` | Cohen's kappa vs `labeled_bad.json` |
 | `apps/api/server.py` | FastAPI: pipeline endpoints + job polling + export |
 | `apps/cli.py` | Standalone CLI demo (`python -m apps.cli run <doc>`) |

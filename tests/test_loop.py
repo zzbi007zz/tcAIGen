@@ -34,6 +34,18 @@ def test_loop_passes_on_first_attempt(sample_test_case_set, sample_requirements_
     assert result.passed and result.actual_iterations == 1 and gen_calls["n"] == 1
 
 
+def test_loop_passes_source_to_generator(sample_test_case_set, sample_requirements_doc):
+    received = {}
+
+    def generator(reqs, source_text=""):
+        received["source"] = source_text
+        return sample_test_case_set
+
+    loop = Loop(generator=generator, verifier=lambda tcs, src: passing_verdict())
+    result = loop.run(sample_requirements_doc, source="RAW DOC")
+    assert result.passed and received["source"] == "RAW DOC"
+
+
 def test_loop_respects_max_iterations(sample_test_case_set, sample_requirements_doc):
     loop, gen_calls = make_loop(
         sample_test_case_set, verdicts=[failing_verdict()] * 5)

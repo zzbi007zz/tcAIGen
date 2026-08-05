@@ -34,6 +34,9 @@ class TestPrompt:
     def test_loads_prompt(self):
         assert "{requirements_json}" in generate.load_generation_prompt("v1")
 
+    def test_prompt_has_source_document_placeholder(self):
+        assert "{source_document}" in generate.load_generation_prompt("v1")
+
     def test_build_feature_content(self, sample_requirements_doc):
         content = json.loads(generate.build_feature_content(sample_requirements_doc))
         assert content["features"][0]["id"] == "F-REG"
@@ -68,6 +71,13 @@ class TestRunGeneration:
         result = generate.run_generation(sample_requirements_doc, client=client)
         assert len(client.calls) == 2
         assert len(result.test_cases) == 2
+
+    def test_source_text_injected_into_prompt(self, sample_requirements_doc):
+        client = MockGeminiClient([generation_payload()])
+        generate.run_generation(
+            sample_requirements_doc, client=client, source_text="RAW SOURCE MARKER")
+        assert "RAW SOURCE MARKER" in client.calls[0]
+        assert "{source_document}" not in client.calls[0]
 
 
 class TestGherkinValidation:
