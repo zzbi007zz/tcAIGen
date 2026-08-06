@@ -8,3 +8,4 @@ output/
 .pytest_cache/
 .DS_Store
 *.tsbuildinfo
+.agentkit/
