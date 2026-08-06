@@ -177,7 +177,7 @@ class TestNewBreakdown:
         report = metrics.evaluate_all(sample_test_case_set, sample_requirements_doc, sample_ba_text)
         assert set(report.breakdown) >= {
             "ac_coverage", "category_balance", "faithfulness", "inferred_ratio",
-            "gherkin_validity", "semantic_consistency", "semantic_duplicates",
+            "gherkin_validity", "semantic_consistency", "outline_efficiency",
             "proxy_mutation",
         }
 

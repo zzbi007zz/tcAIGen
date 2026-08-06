@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import re
 from difflib import SequenceMatcher
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from apps.api.models import RequirementsDocument, TestCase, TestCaseSet
 
@@ -43,8 +43,8 @@ def _cosine(a, b) -> float:
 
 
 def _tc_text(tc: TestCase) -> str:
-    steps = " ".join(step.text for step in tc.gherkin.steps)
-    return f"{tc.title} {tc.gherkin.title} {steps}".strip()
+    """Steps-only text for dedup — excludes title to avoid domain vocabulary inflation."""
+    return " ".join(step.text for step in tc.gherkin.steps).strip()
 
 
 def _strip_inferred_tag(text: str) -> str:
@@ -128,17 +128,29 @@ def compute_semantic_faithfulness(
 def detect_semantic_duplicates(
     test_cases: TestCaseSet, threshold: float = SEMANTIC_DUP_THRESHOLD
 ) -> List[Tuple[str, str]]:
-    """Pairs of test cases whose SBERT title similarity >= threshold."""
+    """Pairs of test cases within the same feature whose SBERT similarity >= threshold.
+
+    Cross-feature comparisons are excluded — tests from different features
+    share domain vocabulary but test different behaviors.
+    """
     cases = test_cases.test_cases
     if len(cases) < 2:
         return []
     try:
-        embeddings = _encode([_tc_text(tc) for tc in cases])
         pairs: List[Tuple[str, str]] = []
-        for i in range(len(cases)):
-            for j in range(i + 1, len(cases)):
-                if _cosine(embeddings[i], embeddings[j]) >= threshold:
-                    pairs.append((cases[i].tc_id, cases[j].tc_id))
+        # Group by feature_id, compare only within each feature
+        by_feature: Dict[str, List[Tuple[int, TestCase]]] = {}
+        for idx, tc in enumerate(cases):
+            by_feature.setdefault(tc.feature_id, []).append((idx, tc))
+        for feature_cases in by_feature.values():
+            if len(feature_cases) < 2:
+                continue
+            indices, tcs = zip(*feature_cases)
+            embeddings = _encode([_tc_text(tc) for tc in tcs])
+            for i in range(len(tcs)):
+                for j in range(i + 1, len(tcs)):
+                    if _cosine(embeddings[i], embeddings[j]) >= threshold:
+                        pairs.append((tcs[i].tc_id, tcs[j].tc_id))
         return pairs
     except Exception as exc:
         logger.warning("semantic dedup unavailable: %s", exc)

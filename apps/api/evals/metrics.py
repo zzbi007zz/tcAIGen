@@ -20,6 +20,7 @@ __all__ = [
     "compute_category_balance",
     "compute_faithfulness",
     "compute_inferred_ratio",
+    "compute_outline_efficiency",
     "validate_gherkin_syntax",
     "evaluate_all",
     "detect_duplicates",
@@ -134,6 +135,19 @@ def compute_inferred_ratio(
     return 0.0
 
 
+def compute_outline_efficiency(test_cases: TestCaseSet) -> float:
+    """Ratio of test cases using scenario_outline vs total.
+
+    Measures how well structurally similar scenarios are merged into
+    Scenario Outline + Examples. 1.0 = all merged, 0.0 = all separate.
+    """
+    if not test_cases.test_cases:
+        return 1.0
+    outlines = sum(1 for tc in test_cases.test_cases
+                   if tc.gherkin.scenario_type.value == "scenario_outline")
+    return outlines / len(test_cases.test_cases)
+
+
 def validate_gherkin_syntax(test_cases: TestCaseSet) -> List[str]:
     return validate_gherkin(test_cases)
 
@@ -173,7 +187,7 @@ def evaluate_all(
     breakdown["faithfulness"] = faithfulness
     if faithfulness < 0.8:
         warnings.append(MetricWarning(
-            metric="faithfulness", message=f"Faithfulness {faithfulness:.2f} below 0.8"
+            metric="faithfulness", message=f"Faithfulness {faithfulness:.3f} below 0.80"
         ))
 
     inferred_ratio = compute_inferred_ratio(test_cases, requirements)
@@ -201,19 +215,13 @@ def evaluate_all(
             tc_ids=bad_gherkin,
         ))
 
-    dup_pairs = detect_duplicates(test_cases)
-    semantic_pairs = (
-        semantic.detect_semantic_duplicates(test_cases) if sbert_enabled else []
-    )
-    breakdown["duplicates"] = [list(p) for p in dup_pairs]
-    breakdown["semantic_duplicates"] = [list(p) for p in semantic_pairs]
-    all_dup_pairs = sorted(set(dup_pairs) | set(semantic_pairs))
-    if all_dup_pairs:
+    outline_eff = compute_outline_efficiency(test_cases)
+    breakdown["outline_efficiency"] = outline_eff
+    if outline_eff < 0.5:
         warnings.append(MetricWarning(
-            metric="duplication",
-            message=f"{len(all_dup_pairs)} duplicate pair(s) "
-                    f"(text > 0.92 or semantic >= 0.95 similarity)",
-            tc_ids=[tc for pair in all_dup_pairs for tc in pair],
+            metric="outline_efficiency",
+            message=f"Only {outline_eff:.0%} of scenario_outline usage. "
+                    f"Consider merging structurally similar scenarios.",
         ))
 
     proxy_enabled = client is not None or not (
@@ -240,8 +248,6 @@ def evaluate_all(
         + 0.10 * (1.0 - inferred_ratio)
         + 0.10 * mutation
     ) * 100
-    if all_dup_pairs:
-        score -= min(10, 2 * len(all_dup_pairs))
     return QualityReport(
         overall_score=round(max(0.0, score), 1),
         breakdown=breakdown,

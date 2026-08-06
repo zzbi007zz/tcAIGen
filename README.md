@@ -1,7 +1,7 @@
 # BDD-First Test Case Generator
 
 Generates Gherkin test cases from BA documents (txt/docx/pdf) + optional UI screenshots,
-and proves output quality with a deterministic gate + 6-metric quality report.
+and proves output quality with a deterministic gate + 7-metric quality report.
 
 **"The test case generator that proves its output quality."**
 
@@ -12,8 +12,9 @@ and proves output quality with a deterministic gate + 6-metric quality report.
 - **Vision + gap detection** — screenshot -> UI inventory -> feature-screen mapping -> 3 gap types
 - **Gherkin-first output** — `Scenario Outline` + Examples tables, declarative steps, `grounding_source` on every case
 - **Deterministic gate** — zero-token Gherkin parse + duplication check before LLM verification
-- **Cross-family verification** — Gemini generates, Claude/GPT verifies via OpenRouter (optional)
-- **Quality report** — 6 metrics with warnings: AC Coverage, Category Balance, Faithfulness, Inferred Ratio, Gherkin Validity, Duplication
+- **Cross-family verification** — Gemini generates, Claude/GPT verifies via OpenRouter (optional, degrades gracefully)
+- **Quality report v2** — 7 metrics with SBERT semantic analysis: AC Coverage, Category Balance, Faithfulness (lexical + SBERT blend), Inferred Ratio, Semantic Consistency, Gherkin Validity, Proxy Mutation
+- **Outline efficiency** — measures how well structurally similar scenarios are merged into `Scenario Outline` + `Examples`
 - **Self-quality gate** — AI validates unique IDs, step-result 1:1 mapping, concrete data, field coverage, grounding before returning
 - **Web UI** — drag-and-drop upload, pipeline progress, gap report, test case browser, quality dashboard, export
 - **CLI + API** — headless mode for CI/CD, REST API for integrations
@@ -28,7 +29,7 @@ cp .env.example .env
 # Edit .env: add GEMINI_API_KEY (required) and OPENROUTER_API_KEY (optional)
 
 # 2. CLI demo
-.venv/bin/python -m apps.cli run tests/fixtures/sample_ba_doc.txt --verbose --screenshots path/to/screenshots/
+.venv/bin/python -m apps.cli run tests/fixtures/sample_ba_doc.txt --verbose
 # Outputs .feature files + report.md into output/
 
 # 3. API server
@@ -36,7 +37,7 @@ cp .env.example .env
 
 # 4. Web UI
 cd apps/web && npm install && npm run dev
-# Open http://localhost:3000 (ensure API_BASE_URL points to your backend)
+# Open http://localhost:3000 (set API_BASE_URL=http://localhost:8001)
 ```
 
 ## Pipeline
@@ -57,7 +58,7 @@ BA Doc (.txt/.md/.docx/.pdf)
     │
     └─── generate (Gemini 2.5 Flash) ──→ TestCaseSet
             │
-            ├── gate() ──→ Gherkin parse + duplication check (FREE)
+            ├── gate() ──→ Gherkin parse + per-feature dedup (FREE)
             │
             ├── verify (OpenRouter Claude/GPT) ──→ VerifierVerdict
             │       └── cross-family, no generator reasoning in prompt
@@ -65,21 +66,23 @@ BA Doc (.txt/.md/.docx/.pdf)
             └── loop (max 3 iterations, $0.50 budget) ──→ converge or exhaust
                     │
                     ├── export/ ──→ .feature files + .xlsx
-                    └── metrics/ ──→ QualityReport (6 metrics)
+                    └── metrics/ ──→ QualityReport v2 (7 metrics)
 ```
 
-## Quality Report Metrics
+## Quality Report Metrics (v2)
 
 | Metric | Description | Warning Threshold |
 |--------|-------------|-------------------|
 | AC Coverage | % acceptance criteria with >= 1 test case | < 85% |
 | Category Balance | positive : negative : edge : boundary ratio | negative < 20% |
-| Faithfulness | token overlap between grounding_source and source doc | < 0.8 |
-| Inferred Ratio | % test cases from inferred (vs explicit) criteria | informational |
+| Faithfulness | 50% lexical token overlap + 50% SBERT semantic similarity to source | < 0.8 |
+| Inferred Ratio | % test cases from inferred (vs explicit) criteria, with requirements fallback | informational |
+| Semantic Consistency | SBERT cosine similarity between each test case and its cited requirement | < 0.35 |
 | Gherkin Validity | % test cases with parseable Gherkin | any failure = hard gate |
-| Duplication | pairs with > 92% text similarity | any detected |
+| Proxy Mutation | LLM-judged "would this test catch this bug?" across a 5-TC sample | < 0.6 |
+| Outline Efficiency | % of test cases using `scenario_outline` (vs standalone `scenario`) | informational |
 
-Overall score weighted: 30% AC coverage + 20% category balance + 25% faithfulness + 25% gherkin validity, minus 2 points per duplicate pair (max -10).
+Overall score: 20% AC coverage + 15% category balance + 15% faithfulness + 15% semantic consistency + 15% Gherkin validity + 10% inferred ratio + 10% proxy mutation.
 
 ## API Reference
 
@@ -100,31 +103,36 @@ Overall score weighted: 30% AC coverage + 20% category balance + 25% faithfulnes
 ```
 apps/
 ├── api/
-│   ├── models/        # Pydantic v2 schemas (requirements, UI, merge, test_case, verdict)
-│   ├── pipeline/      # Core logic: ingest, extract, generate, vision, merge, verify, loop
-│   │   └── export/    # .feature and .xlsx writers
-│   ├── evals/         # 6 quality metrics, gate, calibration, golden dataset
-│   │   └── datasets/  # labeled_bad.json + golden ground truth
-│   ├── prompts/       # Versioned LLM prompts (extraction_v1, generation_v1, vision_v1, merge_v1, verify)
-│   └── server.py      # FastAPI application
-├── cli.py             # Headless CLI: python -m apps.cli run <doc>
-└── web/               # Next.js 14 frontend
+│   ├── models/          # Pydantic v2 schemas (requirements, UI, merge, test_case, verdict)
+│   ├── pipeline/        # Core logic: ingest, extract, generate, vision, merge, verify, loop
+│   │   └── export/      # .feature and .xlsx writers
+│   ├── evals/           # 7 quality metrics, gate, calibration, golden dataset
+│   │   ├── metrics.py   # evaluate_all(), compute_*() functions
+│   │   ├── semantic.py  # SBERT-based consistency, faithfulness, dedup
+│   │   ├── proxy_mutation.py # LLM-judged bug-catching effectiveness
+│   │   ├── gate.py      # Deterministic Gherkin parse + per-feature dedup
+│   │   └── datasets/    # labeled_bad.json + golden ground truth
+│   ├── prompts/         # Versioned LLM prompts (extraction_v1, generation_v1, etc.)
+│   └── server.py        # FastAPI application
+├── cli.py               # Headless CLI: python -m apps.cli run <doc>
+└── web/                 # Next.js 14 frontend
     └── src/
-        ├── app/       # Layout + main pipeline page
-        ├── components/ # FileUpload, PipelineProgress, GapReport, TestCaseBrowser,
-        │               # QualityDashboard, ExportPanel
-        └── lib/       # API client (fetch wrappers)
-tests/                  # 132 pytest tests (unit + integration)
-docs/                   # Architecture, code standards, PDR, changelog
-plans/                  # Rebuild plan (9 phases) + research reports
+        ├── app/         # Layout + main pipeline page
+        ├── components/  # FileUpload, PipelineProgress, GapReport, TestCaseBrowser,
+        │                # QualityDashboard, ExportPanel
+        └── lib/         # API client (fetch wrappers)
+tests/                    # 169 pytest tests (unit + integration)
+docs/                     # Architecture, code standards, PDR, changelog
+plans/                    # Rebuild plan (9 phases) + research reports
 ```
 
 ## Tech Stack
 
 - **Backend:** FastAPI + Pydantic v2 + google-genai + openai (OpenRouter)
+- **Semantic Analysis:** Sentence-BERT (all-MiniLM-L6-v2, local, zero API cost)
 - **Frontend:** Next.js 14 + React 18 + TypeScript
 - **LLMs:** Gemini 2.5 Flash (generate/vision) + Claude/GPT via OpenRouter (verify/judge)
-- **Testing:** pytest (132 tests, 0 failures)
+- **Testing:** pytest (169 tests, 0 failures)
 - **CI:** GitHub Actions (pytest + coverage >= 80% + eval regression gate)
 
 ## Testing
@@ -133,7 +141,7 @@ plans/                  # Rebuild plan (9 phases) + research reports
 .venv/bin/python -m pytest -p no:deepeval -p no:rerunfailures
 ```
 
-132 tests across 14 test files. All tests use mocked LLM clients — no API keys required.
+169 tests across 14 test files. All tests use mocked LLM clients — no API keys required.
 CI enforces >= 80% coverage on `apps/api/` and runs golden dataset regression on PRs.
 
 ## Environment Variables

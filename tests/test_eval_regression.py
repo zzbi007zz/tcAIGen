@@ -40,6 +40,6 @@ def test_report_has_v2_metrics(golden_set, golden_doc):
     report = evaluate_all(golden_set, source_doc=golden_doc)
     assert set(report.breakdown) >= {
         "ac_coverage", "category_balance", "faithfulness", "inferred_ratio",
-        "gherkin_validity", "semantic_consistency", "duplicates",
-        "semantic_duplicates", "proxy_mutation",
+        "gherkin_validity", "semantic_consistency", "outline_efficiency",
+        "proxy_mutation",
     }

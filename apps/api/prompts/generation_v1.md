@@ -24,9 +24,17 @@ STRUCTURED REQUIREMENTS:
    - Example (BAD):  grounding_source: "Registration form accepts valid email and password"  (paraphrased — fails faithfulness check)
    - If the criterion text is long, copy the exact sentence — do not shorten it.
 
-3. Scenario types:
-   - Use "scenario_outline" with an Examples table for boundary/equivalence cases — never write 5 similar scenarios.
-   - Use "scenario" for single-path cases (positive, negative, edge).
+3. Scenario types — CRITICAL BUSINESS RULE:
+   - Use "scenario_outline" with an Examples table when multiple inputs produce the same outcome.
+   - NEVER write separate test cases that share the same Given+When steps. Merge them into Scenario Outline.
+   - DO NOT:
+     TC-001: "Early closure for 1st cycle with full tax refund"
+     TC-002: "Early closure for 2nd cycle with full tax refund"
+     TC-003: "Early closure for 3rd cycle with full tax refund"
+   - DO:
+     TC-001: Scenario Outline "Early closure with full tax refund before 1st interest payment"
+       Examples: | cycle | 1st | 2nd | 3rd |
+   - Use "scenario" only for single-path cases where Examples table adds no value.
 
 4. Steps must be declarative — describe business intent, not UI mechanics.
    - Good: "the user submits valid credentials"
